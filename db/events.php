@@ -87,6 +87,29 @@ $observers = [
         'includefile' => null,
         'internal'    => true,
         'priority'    => 9999
-    ]
+    ],
+    [
+        'eventname' => '\enrol_arlo\event\enrolment_instance_deleted',
+        'callback'    => '\enrol_arlo\local\observer::enrolment_instance_deleted',
+        'includefile' => null,
+        'internal'    => true,
+        'priority'    => 9999
+    ],
+        // Plugin event: A Arlo event updated from Arlo and updated in Moodle.
+    [
+        'eventname' => '\enrol_arlo\event\event_updated',
+        'callback'    => '\enrol_arlo\local\observer::event_updated',
+        'includefile' => null,
+        'internal'    => true,
+        'priority'    => 9999
+    ],
+        // Plugin event: A new Arlo enrolment instance created in Moodle.
+    [
+        'eventname' => '\enrol_arlo\event\enrolment_instance_added',
+        'callback'    => '\enrol_arlo\local\observer::enrolment_instance_added',
+        'includefile' => null,
+        'internal'    => true,
+        'priority'    => 9999
+    ],
 
 ];

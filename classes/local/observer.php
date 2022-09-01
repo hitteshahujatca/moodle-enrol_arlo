@@ -21,6 +21,7 @@ defined('MOODLE_INTERNAL') || die();
 use core\event\course_completed;
 use core\event\course_viewed;
 use enrol_arlo\local\enum\arlo_type;
+use enrol_arlo_plugin;
 
 /**
  * Main Event API Observer class.
@@ -164,5 +165,94 @@ class observer {
         require_once($CFG->dirroot . '/enrol/arlo/locallib.php');
         enrol_arlo_add_associated(arlo_type::ONLINEACTIVITY, $event->other);
     }
+    /**
+     * On update of Arlo activity check if we can update the calendar entries too.
+     *
+     * @param $event
+     * @throws \coding_exception
+     * @throws \dml_exception
+     * @throws \moodle_exception
+     */
+    public static function event_updated($event) {
+        global $DB, $CFG;
+        require_once($CFG->dirroot.'/calendar/lib.php');
+        // See if enrolment method exists, otherwise no point updating calendar events.
+        $conditions = [
+            'customchar1' => $event->other['platform'],
+            'customchar3' => $event->other['sourceguid'],
+            'status' => 0
+        ];
+        $plugin = api::get_enrolment_plugin();
+        if ($plugin::instance_exists($conditions)) {
+            // Update any associated calendar entries associated with the Arlo event.
+            // Get existing calendar events for the Arlo event.
+            $calendareventid = $DB->get_record('event', array('instance' => (int)$event->other['id']), '*', MUST_EXIST);
+            $calevent = \calendar_event::load($calendareventid);
+            if ($calevent) {
+                // Change the times according to the new Arlo event times.
+                $timestart = new \DateTime($event->other['startdatetime']);
+                $timestart->setTimezone(\core_date::get_user_timezone_object());
+                $calevent->timestart = $timestart->getTimestamp();
+                $calevent->timeduration = strtotime($event->other['finishdatetime']) - $calevent->timestart;
+                $calevent->update($calevent);
+            }
+        }
+    }
 
+    /**
+     * On deletion of Arlo moodle enrolment method delete the calendar entries too.
+     *
+     * @param $instancedata
+     * @throws \dml_exception
+     * @throws \moodle_exception
+     */
+    public static function enrolment_instance_deleted($instancedata) {
+        global $DB, $CFG;
+        require_once($CFG->dirroot.'/calendar/lib.php');
+        // Find any calendar entries and delete them too.
+        // Get Arlo event.
+        $conditions = [
+            'sourceguid' => $instancedata->other['sourceguid'],
+            'platform' => $instancedata->other['platform']
+        ];
+        $persistent = event_persistent::get_record($conditions);
+        if (!$persistent) {
+            throw new moodle_exception('No related record');
+        }
+        $calendareventid = $DB->get_record('event', array('instance' => (int)$persistent->get('id')), '*', MUST_EXIST);
+        $calevent = \calendar_event::load($calendareventid);
+        if ($calevent) {
+            $calevent->delete(false);
+        }
+    }
+
+    /**
+     * On creation of Arlo enrolment method add the calendar entries too.
+     *
+     * @param $instancedata
+     * @throws \coding_exception
+     * @throws \dml_exception
+     * @throws \moodle_exception
+     */
+    public static function enrolment_instance_added($instancedata) {
+        global $CFG;
+        require_once($CFG->dirroot.'/calendar/lib.php');
+        $event = new \stdClass();
+        $event->eventtype = 'group';
+        $event->type = CALENDAR_EVENT_TYPE_STANDARD;
+        $event->name = $instancedata->other['eventname'];
+        $event->description = 'Event added from Arlo for Event code : '.$instancedata->other['eventname'];
+        $event->format = FORMAT_HTML;
+        $event->courseid = $instancedata->other['courseid'];
+        $event->groupid = $instancedata->other['groupid'];
+        $event->userid = 0;
+        $event->modulename = 0;
+        $event->instance = $instancedata->other['instanceid'];
+        $event->timestart = $instancedata->other['startdatetime'];
+        $event->visible = true;
+        $event->timeduration = $instancedata->other['finishdatetime'] - $event->timestart;
+        if (has_capability('moodle/calendar:manageentries', \context_system::instance())) {
+            \calendar_event::create($event);
+        }
+    }
 }

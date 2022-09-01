@@ -41,7 +41,8 @@ use enrol_arlo\local\persistent\online_activity_persistent;
 use enrol_arlo\local\job\memberships_job;
 use enrol_arlo\local\job\contacts_job;
 use enrol_arlo\local\job\outcomes_job;
-
+use enrol_arlo\event\enrolment_instance_deleted;
+use enrol_arlo\event\enrolment_instance_added;
 /**
  * DateTimeOffset format yyyy-mm-ddThh:mm:ss.fffffffzzzz.
  *
@@ -285,7 +286,19 @@ class enrol_arlo_plugin extends enrol_plugin {
         }
         // Use parent to create enrolment instance.
         $instanceid = parent::add_instance($course, $fields);
-        $this->enrol_arlo_add_calendar_events($fields, $persistent);
+        $data = [
+            'objectid' => 1,
+            'context' => context_course::instance($course->id),
+            'other' => [
+                'courseid' => $course->id,
+                'eventname' => $fields['name'],
+                'groupid' => isset($groupid) ? $groupid : 0,
+                'instanceid' => $persistent->get('id'),
+                'startdatetime' => strtotime($persistent->get('startdatetime')),
+                'finishdatetime' => strtotime($persistent->get('finishdatetime'))
+            ]
+        ];
+        enrolment_instance_added::create($data)->trigger();
         // Register enrolment instance jobs.
         memberships_job::register_job_instance(
             $instanceid,
@@ -375,6 +388,27 @@ class enrol_arlo_plugin extends enrol_plugin {
         );
         // Delete email queue information.
         $DB->delete_records('enrol_arlo_emailqueue', $conditions);
+
+        // Delete associated calendar events - PalmeiraGroup 2022.
+        $data = [
+            'objectid' => 1,
+            'context' => context_module::instance(),
+            'other' => [
+                'id' => $this->raw_get('id'),
+                'sourceid' => $this->raw_get('sourceid'),
+                'sourceguid' => $this->raw_get('sourceguid'),
+                'sourcestatus' => $this->raw_get('sourcestatus'),
+                'sourcetemplateid' => $this->raw_get('sourcetemplateid'),
+                'sourcetemplateguid' => $this->raw_get('sourcetemplateguid')
+            ]
+        ];
+        enrolment_instance_deleted::create($data)->trigger();
+        $events = $DB->get_records('event', array('instance' => $instance->id));
+        foreach ($events as $event) {
+            require_once($CFG->dirroot.'/calendar/lib.php');
+            $event = new calendar_event($event);
+            $event->delete(false);
+        }
         // Time for the parent to do it's thang, yeow.
         parent::delete_instance($instance);
     }
@@ -962,31 +996,6 @@ class enrol_arlo_plugin extends enrol_plugin {
             role_unassign_all($unenrolparams);
         }
     }
-}
-
-/**
- * Add calendar events matching the Arlo events. Does not support multiple sessions as of yet.
- *
- * @param array|null $fields
- * @param stdClass $persistent
- */
-function enrol_arlo_add_calendar_events($fields, stdClass $persistent) {
-    require_once($CFG->dirroot.'/calendar/lib.php');
-    $event = new stdClass();
-    $event->eventtype = 'group';
-    $event->type = CALENDAR_EVENT_TYPE_STANDARD;
-    $event->name = $fields['name'];
-    $event->description = 'Event added from Arlo for Event code : '.$fields['name'];
-    $event->format = FORMAT_HTML;
-    $event->courseid = $course->id;
-    $event->groupid = $groupid;
-    $event->userid = 0;
-    $event->modulename = 0;
-    $event->instance = $instanceid;
-    $event->timestart = strtotime($persistent->get('startdatetime'));
-    $event->visible = true;
-    $event->timeduration = strtotime($persistent->get('finishdatetime')) - $event->timestart;
-    calendar_event::create($event);
 }
 
 /**
