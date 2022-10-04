@@ -164,7 +164,7 @@ class enrol_arlo_plugin extends enrol_plugin {
             parent::unenrol_user($instance, $user->id);
         }
         if ($unenrolaction == ENROL_EXT_REMOVED_SUSPENDNOROLES) {
-            parent::suspend_and_remove_roles($instance, $user->id);
+            $this->suspend_and_remove_roles($instance, $user->id);
         }
     }
 
@@ -285,7 +285,7 @@ class enrol_arlo_plugin extends enrol_plugin {
         }
         // Use parent to create enrolment instance.
         $instanceid = parent::add_instance($course, $fields);
-
+        $this->enrol_arlo_add_calendar_events($fields, $persistent);
         // Register enrolment instance jobs.
         memberships_job::register_job_instance(
             $instanceid,
@@ -962,6 +962,31 @@ class enrol_arlo_plugin extends enrol_plugin {
             role_unassign_all($unenrolparams);
         }
     }
+}
+
+/**
+ * Add calendar events matching the Arlo events. Does not support multiple sessions as of yet.
+ *
+ * @param array|null $fields
+ * @param stdClass $persistent
+ */
+function enrol_arlo_add_calendar_events($fields, stdClass $persistent) {
+    require_once($CFG->dirroot.'/calendar/lib.php');
+    $event = new stdClass();
+    $event->eventtype = 'group';
+    $event->type = CALENDAR_EVENT_TYPE_STANDARD;
+    $event->name = $fields['name'];
+    $event->description = 'Event added from Arlo for Event code : '.$fields['name'];
+    $event->format = FORMAT_HTML;
+    $event->courseid = $course->id;
+    $event->groupid = $groupid;
+    $event->userid = 0;
+    $event->modulename = 0;
+    $event->instance = $instanceid;
+    $event->timestart = strtotime($persistent->get('startdatetime'));
+    $event->visible = true;
+    $event->timeduration = strtotime($persistent->get('finishdatetime')) - $event->timestart;
+    calendar_event::create($event);
 }
 
 /**
