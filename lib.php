@@ -286,13 +286,21 @@ class enrol_arlo_plugin extends enrol_plugin {
         }
         // Use parent to create enrolment instance.
         $instanceid = parent::add_instance($course, $fields);
+        if (isset($groupid)) {
+            $calgroupid = $groupid;
+        } else if (isset($fields['customint2'])) {
+            $calgroupid = $fields['customint2'];
+        } else {
+            $calgroupid = 0;
+        }
+
         $data = [
             'objectid' => 1,
             'context' => context_course::instance($course->id),
             'other' => [
                 'courseid' => $course->id,
                 'eventname' => $fields['name'],
-                'groupid' => isset($groupid) ? $groupid : $fields['customint2'],
+                'groupid' => $calgroupid,
                 'instanceid' => $persistent->get('id'),
                 'startdatetime' => strtotime($persistent->get('startdatetime')),
                 'finishdatetime' => strtotime($persistent->get('finishdatetime'))
