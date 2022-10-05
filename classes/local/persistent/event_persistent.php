@@ -189,7 +189,10 @@ class event_persistent extends persistent {
                     'sourceguid' => $this->raw_get('sourceguid'),
                     'sourcestatus' => $this->raw_get('sourcestatus'),
                     'sourcetemplateid' => $this->raw_get('sourcetemplateid'),
-                    'sourcetemplateguid' => $this->raw_get('sourcetemplateguid')
+                    'sourcetemplateguid' => $this->raw_get('sourcetemplateguid'),
+                    'startdatetime' => $this->raw_get('startdatetime'),
+                    'finishdatetime' => $this->raw_get('finishdatetime'),
+                    'platform' => $this->raw_get('platform')
                 ]
             ];
             event_updated::create($data)->trigger();

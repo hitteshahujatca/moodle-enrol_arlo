@@ -22,6 +22,9 @@ use core\event\course_completed;
 use core\event\course_viewed;
 use enrol_arlo\local\enum\arlo_type;
 use enrol_arlo_plugin;
+use enrol_arlo\api;
+use core_calendar\calendar_event;
+use enrol_arlo\local\persistent\event_persistent;
 
 /**
  * Main Event API Observer class.
