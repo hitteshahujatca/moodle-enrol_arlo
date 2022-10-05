@@ -292,7 +292,7 @@ class enrol_arlo_plugin extends enrol_plugin {
             'other' => [
                 'courseid' => $course->id,
                 'eventname' => $fields['name'],
-                'groupid' => isset($groupid) ? $groupid : 0,
+                'groupid' => isset($groupid) ? $groupid : $fields['customint2'],
                 'instanceid' => $persistent->get('id'),
                 'startdatetime' => strtotime($persistent->get('startdatetime')),
                 'finishdatetime' => strtotime($persistent->get('finishdatetime'))
@@ -401,11 +401,6 @@ class enrol_arlo_plugin extends enrol_plugin {
             ];
         enrolment_instance_deleted::create($data)->trigger();
         $events = $DB->get_records('event', array('instance' => $instance->id));
-        foreach ($events as $event) {
-            require_once($CFG->dirroot.'/calendar/lib.php');
-            $event = new calendar_event($event);
-            $event->delete(false);
-        }
         // Time for the parent to do it's thang, yeow.
         parent::delete_instance($instance);
     }
