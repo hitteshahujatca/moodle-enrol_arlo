@@ -392,16 +392,13 @@ class enrol_arlo_plugin extends enrol_plugin {
         // Delete associated calendar events - PalmeiraGroup 2022.
         $data = [
             'objectid' => 1,
-            'context' => context_module::instance(),
+            'context' => context_course::instance($instance->courseid),
             'other' => [
-                'id' => $this->raw_get('id'),
-                'sourceid' => $this->raw_get('sourceid'),
-                'sourceguid' => $this->raw_get('sourceguid'),
-                'sourcestatus' => $this->raw_get('sourcestatus'),
-                'sourcetemplateid' => $this->raw_get('sourcetemplateid'),
-                'sourcetemplateguid' => $this->raw_get('sourcetemplateguid')
-            ]
-        ];
+                'id' => $instance->id,
+                'platform' => $instance->customchar1,
+                'sourceguid' => $instance->customchar3,
+                ]
+            ];
         enrolment_instance_deleted::create($data)->trigger();
         $events = $DB->get_records('event', array('instance' => $instance->id));
         foreach ($events as $event) {

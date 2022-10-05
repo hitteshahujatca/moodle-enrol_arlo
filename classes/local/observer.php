@@ -222,7 +222,7 @@ class observer {
         if (!$persistent) {
             throw new moodle_exception('No related record');
         }
-        $calendareventid = $DB->get_record('event', array('instance' => (int)$persistent->get('id')), '*', MUST_EXIST);
+        $calendareventid = $DB->get_record('event', array('instance' => (int)$persistent->get('id')), '*', IGNORE_MISSING);
         $calevent = \calendar_event::load($calendareventid);
         if ($calevent) {
             $calevent->delete(false);
