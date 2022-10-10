@@ -41,8 +41,11 @@ use enrol_arlo\local\persistent\online_activity_persistent;
 use enrol_arlo\local\job\memberships_job;
 use enrol_arlo\local\job\contacts_job;
 use enrol_arlo\local\job\outcomes_job;
+use enrol_arlo\local\job\event_sessions_job;
 use enrol_arlo\event\enrolment_instance_deleted;
 use enrol_arlo\event\enrolment_instance_added;
+use enrol_arlo\local\persistent\session_persistent;
+
 /**
  * DateTimeOffset format yyyy-mm-ddThh:mm:ss.fffffffzzzz.
  *
@@ -186,6 +189,12 @@ class enrol_arlo_plugin extends enrol_plugin {
         return $DB->get_record('enrol', $conditions, '*', $strictness);
     }
 
+    public static function get_instance($conditions, $strictness = IGNORE_MISSING) {
+        global $DB;
+        $conditions = array_merge($conditions, ['enrol' => 'arlo']);
+        return $DB->get_record('enrol', $conditions, '*', $strictness);
+    }
+
     /**
      * Check if instance exists based on passed in conditions. @TODO fix.
      *
@@ -226,6 +235,7 @@ class enrol_arlo_plugin extends enrol_plugin {
      * @throws required_capability_exception
      */
     public function add_instance($course, array $fields = null) {
+        // From the source guid , get the persistent event.
         $pluginconfig = new arlo_plugin_config();
         $fields['roleid'] = $pluginconfig->get('roleid');
         $fields['customchar1'] = $pluginconfig->get('platform');
@@ -245,7 +255,8 @@ class enrol_arlo_plugin extends enrol_plugin {
                 throw new moodle_exception('No related record');
             }
             $fields['name'] = $persistent->get('code');
-            $endpoint = 'events/' . $persistent->get('sourceid') . '/registrations/';
+            $registrationendpoint = 'events/' . $persistent->get('sourceid') . '/registrations/';
+            $sessionendpoint = 'events/' . $persistent->get('sourceid') . '/sessions/';
             $collection = 'Events';
             $fields['customchar2'] = $fields['arlotype'];
             $fields['customchar3'] = $persistent->get('sourceguid');
@@ -293,40 +304,46 @@ class enrol_arlo_plugin extends enrol_plugin {
         } else {
             $calgroupid = 0;
         }
+            // Register enrolment instance jobs.
+            memberships_job::register_job_instance(
+                $instanceid,
+                $registrationendpoint,
+                $collection,
+                $persistent->get_time_norequests_after()
+            );
+            outcomes_job::register_job_instance(
+                $instanceid,
+                'registrations/',
+                'Registrations',
+                $persistent->get_time_norequests_after()
+            );
+            contacts_job::register_job_instance(
+                $instanceid,
+                $registrationendpoint,
+                $collection,
+                $persistent->get_time_norequests_after()
+            );
 
+            $eventsessionsjobpersistent = event_sessions_job::register_job_instance(
+                $instanceid,
+                $sessionendpoint,
+                $collection,
+                $persistent->get_time_norequests_after()
+            );
         $data = [
             'objectid' => 1,
             'context' => context_course::instance($course->id),
             'other' => [
                 'courseid' => $course->id,
                 'eventname' => $fields['name'],
-                'groupid' => $calgroupid,
+                'groupid' => isset($groupid) ? $groupid : $calgroupid,
                 'instanceid' => $persistent->get('id'),
-                'startdatetime' => strtotime($persistent->get('startdatetime')),
-                'finishdatetime' => strtotime($persistent->get('finishdatetime'))
+                'platform' => $pluginconfig->get('platform'),
+                'sourceeventguid' => $persistent->get('sourceguid')
+
             ]
         ];
         enrolment_instance_added::create($data)->trigger();
-        // Register enrolment instance jobs.
-        memberships_job::register_job_instance(
-            $instanceid,
-            $endpoint,
-            $collection,
-            $persistent->get_time_norequests_after()
-        );
-        outcomes_job::register_job_instance(
-            $instanceid,
-            'registrations/',
-            'Registrations',
-            $persistent->get_time_norequests_after()
-        );
-        contacts_job::register_job_instance(
-            $instanceid,
-            $endpoint,
-            $collection,
-            $persistent->get_time_norequests_after()
-        );
-
         // No external API call during PHPUnit test. Return immediately.
         if (PHPUNIT_TEST) {
             return $instanceid;
@@ -382,7 +399,7 @@ class enrol_arlo_plugin extends enrol_plugin {
      * @throws dml_exception
      */
     public function delete_instance($instance) {
-        global $DB;
+        global $DB, $CFG;
         // Delete associated registrations.
         $DB->delete_records('enrol_arlo_registration', array('enrolid' => $instance->id));
         // Delete job scheduling information.
@@ -398,6 +415,13 @@ class enrol_arlo_plugin extends enrol_plugin {
         $DB->delete_records('enrol_arlo_emailqueue', $conditions);
 
         // Delete associated calendar events - PalmeiraGroup 2022.
+        $events = $DB->get_records('event', array('instance' => $instance->id));
+        foreach ($events as $event) {
+            require_once($CFG->dirroot.'/calendar/lib.php');
+            $event = new calendar_event($event);
+            $event->delete(false);
+        }
+                // Delete associated calendar events - PalmeiraGroup 2022.
         $data = [
             'objectid' => 1,
             'context' => context_course::instance($instance->courseid),
@@ -408,7 +432,8 @@ class enrol_arlo_plugin extends enrol_plugin {
                 ]
             ];
         enrolment_instance_deleted::create($data)->trigger();
-        $events = $DB->get_records('event', array('instance' => $instance->id));
+
+
         // Time for the parent to do it's thang, yeow.
         parent::delete_instance($instance);
     }

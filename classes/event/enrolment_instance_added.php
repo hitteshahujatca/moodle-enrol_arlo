@@ -71,7 +71,7 @@ class enrolment_instance_added extends \core\event\base {
      * @return string
      */
     public function get_description() {
-        return "Arlo enrolment instance added '" . $this->other['id'] . "'.";
+        return "Arlo enrolment instance added for instanceID'" . $this->other['instanceid'] . "'.";
     }
 
     /**

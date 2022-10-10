@@ -31,6 +31,7 @@ use enrol_arlo\local\config\arlo_plugin_config;
 use enrol_arlo\local\enum\arlo_type;
 use enrol_arlo\Arlo\AuthAPI\Enum\EventStatus;
 use enrol_arlo\Arlo\AuthAPI\Enum\OnlineActivityStatus;
+use enrol_arlo\Arlo\AuthAPI\Enum\EventSessionStatus;
 
 /**
  * Deletes all occurrences of the old instance throughout the Arlo tables

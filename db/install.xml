@@ -255,9 +255,10 @@
         <FIELD NAME="sourceid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="An integer value that uniquely identifies this resource."/>
         <FIELD NAME="startdatetime" TYPE="char" LENGTH="36" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="finishdatetime" TYPE="char" LENGTH="36" NOTNULL="false" SEQUENCE="false"/>
-        <FIELD NAME="startdatetimezoneabbr" TYPE="char" LENGTH="36" NOTNULL="false" SEQUENCE="false"/>
-        <FIELD NAME="finishdatetimezoneabbr" TYPE="char" LENGTH="36" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="starttimezoneabbr" TYPE="char" LENGTH="36" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="finishtimezoneabbr" TYPE="char" LENGTH="36" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="sessiontype" TYPE="char" LENGTH="36" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="name" TYPE="char" LENGTH="48" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="description" TYPE="char" LENGTH="48" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="sourcestatus" TYPE="char" LENGTH="20" NOTNULL="false" SEQUENCE="false" COMMENT="An EventSessionStatus value representing the current state of this session, such as draft, active, completed or cancelled."/>
         <FIELD NAME="sourcecreated" TYPE="char" LENGTH="36" NOTNULL="false" SEQUENCE="false" COMMENT="When this resource was created on Arlo"/>

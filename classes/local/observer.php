@@ -25,6 +25,8 @@ use enrol_arlo_plugin;
 use enrol_arlo\api;
 use core_calendar\calendar_event;
 use enrol_arlo\local\persistent\event_persistent;
+use enrol_arlo\local\persistent\event_session_persistent;
+use enrol_arlo\Arlo\AuthAPI\Enum\EventSessionStatus;
 
 /**
  * Main Event API Observer class.
@@ -168,6 +170,7 @@ class observer {
         require_once($CFG->dirroot . '/enrol/arlo/locallib.php');
         enrol_arlo_add_associated(arlo_type::ONLINEACTIVITY, $event->other);
     }
+ 
     /**
      * On update of Arlo activity check if we can update the calendar entries too.
      *
@@ -210,6 +213,7 @@ class observer {
      * @throws \moodle_exception
      */
     public static function enrolment_instance_deleted($instancedata) {
+        return true;
         global $DB, $CFG;
         require_once($CFG->dirroot.'/calendar/lib.php');
         // Find any calendar entries and delete them too.
@@ -218,14 +222,13 @@ class observer {
             'sourceguid' => $instancedata->other['sourceguid'],
             'platform' => $instancedata->other['platform']
         ];
-        $persistent = event_persistent::get_record($conditions);
-        if (!$persistent) {
-            throw new moodle_exception('No related record');
-        }
-        $calendareventid = $DB->get_record('event', array('instance' => (int)$persistent->get('id')), '*', IGNORE_MISSING);
-        $calevent = \calendar_event::load($calendareventid);
-        if ($calevent) {
-            $calevent->delete(false);
+        require_once($CFG->dirroot . '/enrol/arlo/locallib.php');
+        $plugin = api::get_enrolment_plugin();
+        if ($plugin::instance_exists($conditions)) {
+            // Get enrolment method.
+            if ($enrolinstance = $plugin::get_instance($conditions)) {
+                delete_calendar_event_for_session($enrolinstance);
+            }
         }
     }
 
@@ -238,24 +241,117 @@ class observer {
      * @throws \moodle_exception
      */
     public static function enrolment_instance_added($instancedata) {
+        global $CFG, $DB;
+        require_once($CFG->dirroot . '/enrol/arlo/locallib.php');
+        // Check for existing Arlo enrolments association and add calendar events for them.
+        // See if enrolment method exists, otherwise no point updating calendar events.
+
+        $conditions = [
+            'customchar1' => $instancedata->other['platform'],
+            'customchar3' => $instancedata->other['sourceeventguid'],
+            'status' => 0
+        ];
+        $plugin = api::get_enrolment_plugin();
+        if ($plugin::instance_exists($conditions)) {
+            if ($enrolinstance = $plugin::get_instance($conditions)) {
+                $conditions = [
+                    'platform' => $instancedata->other['platform'],
+                    'sourceeventguid' => $instancedata->other['sourceeventguid'],
+                    'sourcestatus' => EventSessionStatus::ACTIVE
+                ];
+                $sessionpersistents = event_session_persistent::get_records($conditions);
+                foreach ($sessionpersistents as $sessionpersistent) {
+                    if (!$record = $DB->get_record('event', array('uuid' => $sessionpersistent->get('id'),
+                    'instance' => (int)$enrolinstance->id))) {
+                        require_once($CFG->dirroot.'/calendar/lib.php');
+                        // No existing records.
+                        $event = new \stdClass();
+                        $event->eventtype = 'group';
+                        $event->type = CALENDAR_EVENT_TYPE_STANDARD;
+                        $event->name = $sessionpersistent->get('name');
+                        $event->description = $sessionpersistent->get('description');
+                        $event->format = FORMAT_HTML;
+                        $event->courseid = $enrolinstance->courseid;
+                        $event->groupid = $enrolinstance->customint2;
+                        $event->userid = 0;
+                        $event->modulename = 0;
+                        $event->instance = $enrolinstance->id;
+                        $timestart = new \DateTime($sessionpersistent->get('startdatetime'));
+                        $timefinish = new \DateTime($sessionpersistent->get('finishdatetime'));
+                        $event->timestart = $timestart->getTimestamp();
+                        $event->visible = true;
+                        $event->timeduration = $timefinish->getTimestamp() - $event->timestart;
+                        $event->uuid = $sessionpersistent->get('sourceid');
+                        if (has_capability('moodle/calendar:manageentries', \context_system::instance())) {
+                            \calendar_event::create($event);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * When an session in Arlo is updated, update any related Calendar events in Moodle
+     *
+     * @param $sessiondata
+     * @throws \coding_exception
+     * @throws \dml_exception
+     * @throws \moodle_exception
+     */
+    public static function session_updated($sessiondata) {
+        // If a session is updated in Arlo, find any related calendar events and update them too.
+        global $CFG, $DB;
+        require_once($CFG->dirroot . '/enrol/arlo/locallib.php');
+        // Check for existing Arlo enrolments association and add calendar events for them.
+        // See if enrolment method exists, otherwise no point updating calendar events.
+        $conditions = [
+            'customchar1' => $sessiondata->other['platform'],
+            'customchar3' => $sessiondata->other['sourceeventguid'],
+            'status' => 0
+        ];
+        $plugin = api::get_enrolment_plugin();
+        if ($plugin::instance_exists($conditions)) {
+            // Get enrolment method.
+            if ($enrolinstance = $plugin::get_instance($conditions)) {
+                if ($record = $DB->get_record('event', array('uuid' => $sessiondata->other['sourceid'],
+                'instance' => (int)$enrolinstance->id))) {
+                    update_calendar_event_for_session($sessiondata, $enrolinstance);
+                } else {
+                    if ($sessiondata->other['sourcestatus'] === EventSessionStatus::ACTIVE) {
+                        add_calendar_event_for_session($sessiondata, $enrolinstance);
+                    }
+                }           
+            }
+        }
+    }
+
+    /**
+     * On creation of Arlo event session process calendar entries too.
+     *
+     * @param $sessiondata
+     * @throws \coding_exception
+     * @throws \dml_exception
+     * @throws \moodle_exception
+     */
+    public static function session_added($sessiondata) {
         global $CFG;
-        require_once($CFG->dirroot.'/calendar/lib.php');
-        $event = new \stdClass();
-        $event->eventtype = 'group';
-        $event->type = CALENDAR_EVENT_TYPE_STANDARD;
-        $event->name = $instancedata->other['eventname'];
-        $event->description = 'Event added from Arlo for Event code : '.$instancedata->other['eventname'];
-        $event->format = FORMAT_HTML;
-        $event->courseid = $instancedata->other['courseid'];
-        $event->groupid = $instancedata->other['groupid'];
-        $event->userid = 0;
-        $event->modulename = 0;
-        $event->instance = $instancedata->other['instanceid'];
-        $event->timestart = $instancedata->other['startdatetime'];
-        $event->visible = true;
-        $event->timeduration = $instancedata->other['finishdatetime'] - $event->timestart;
-        if (has_capability('moodle/calendar:manageentries', \context_system::instance())) {
-            \calendar_event::create($event);
+        require_once($CFG->dirroot . '/enrol/arlo/locallib.php');
+        // Check for existing Arlo enrolments association and add calendar events for them.
+        // See if enrolment method exists, otherwise no point updating calendar events.
+        $conditions = [
+            'customchar1' => $sessiondata->other['platform'],
+            'customchar3' => $sessiondata->other['sourceeventguid'],
+            'status' => 0
+        ];
+        $plugin = api::get_enrolment_plugin();
+        if ($plugin::instance_exists($conditions)) {
+            // Get enrolment method.
+            if ($enrolinstance = $plugin::get_instance($conditions)) {
+                if ($sessiondata->other['sourcestatus'] === EventSessionStatus::ACTIVE) {
+                    add_calendar_event_for_session($sessiondata, $enrolinstance);
+                }
+            }
         }
     }
 }

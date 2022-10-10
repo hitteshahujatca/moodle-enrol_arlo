@@ -132,7 +132,6 @@ class event_sessions_job extends job {
                             $eventsession->save();
                             $lastsourcetimemodified = $sourcemodified;
                             // Update scheduling information on persistent after successfull save.
-                            echo "updating time...";
                             $jobpersistent->set('timelastrequest', time());
                             $jobpersistent->set('lastsourceid', $sourceid);
                             $jobpersistent->set('lastsourcetimemodified', $lastsourcetimemodified);

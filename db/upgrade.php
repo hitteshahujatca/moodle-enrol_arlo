@@ -505,6 +505,33 @@ function xmldb_enrol_arlo_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2020070315, 'enrol', 'arlo');
     }
 
+    if ($oldversion < 2022100601) {
+        // Conditionally add enrol_arlo_event_session table.
+        if (!$dbman->table_exists('enrol_arlo_event_session')) {
+            $table = new xmldb_table('enrol_arlo_event_session');
+            $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+            $table->add_field('platform', XMLDB_TYPE_CHAR, '128', null, XMLDB_NOTNULL, null, null);
+            $table->add_field('sourceid', XMLDB_TYPE_INTEGER, '10', null, null, null, null);
+            $table->add_field('startdatetime', XMLDB_TYPE_CHAR, '36', null, null, null, null);
+            $table->add_field('finishdatetime', XMLDB_TYPE_CHAR, '36', null, null, null, null);
+            $table->add_field('starttimezoneabbr', XMLDB_TYPE_CHAR, '36', null, null, null, null);
+            $table->add_field('finishtimezoneabbr', XMLDB_TYPE_CHAR, '36', null, null, null, null);
+            $table->add_field('sessiontype', XMLDB_TYPE_CHAR, '36', null, null, null, null);
+            $table->add_field('name', XMLDB_TYPE_CHAR, '48', null, null, null, null);
+            $table->add_field('description', XMLDB_TYPE_CHAR, '128', null, null, null, null);
+            $table->add_field('sourcestatus', XMLDB_TYPE_CHAR, '20', null, null, null, null);
+            $table->add_field('sourcecreated', XMLDB_TYPE_CHAR, '36', null, null, null, null);
+            $table->add_field('sourcemodified', XMLDB_TYPE_CHAR, '36', null, null, null, null);
+            $table->add_field('sourceeventid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $table->add_field('sourceeventguid', XMLDB_TYPE_CHAR, '36', null, null, null, null);
+            $table->add_field('usermodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            // Primary key.
+            $table->add_key('primary', XMLDB_KEY_PRIMARY, array('id'));
+            $dbman->create_table($table);
+        }
+    }
 
     return true;
 }

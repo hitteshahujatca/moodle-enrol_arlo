@@ -28,6 +28,7 @@ use enrol_arlo\local\persistent\contact_persistent;
 use enrol_arlo\local\persistent\contact_merge_request_persistent;
 use enrol_arlo\local\persistent\event_template_persistent;
 use enrol_arlo\local\persistent\event_persistent;
+use enrol_arlo\local\persistent\event_session_persistent;
 use enrol_arlo\local\persistent\registration_persistent;
 use enrol_arlo\Arlo\AuthAPI\Enum\ContactStatus;
 use enrol_arlo\Arlo\AuthAPI\Enum\EventStatus;
@@ -35,7 +36,8 @@ use enrol_arlo\Arlo\AuthAPI\Enum\EventTemplateStatus;
 use enrol_arlo\Arlo\AuthAPI\Enum\RegistrationStatus;
 use enrol_arlo\local\config\arlo_plugin_config;
 use enrol_arlo\local\enum\arlo_type;
-
+use enrol_arlo\Arlo\AuthAPI\Enum\EventSessionType;
+use enrol_arlo\Arlo\AuthAPI\Enum\EventSessionStatus;
 /**
  * Arlo enrolment plugin test data generator class.
  *
@@ -170,6 +172,39 @@ class enrol_arlo_generator extends testing_module_generator {
         $event->save();
         return $event;
     }
+    
+    /**
+     * Generate a dummy event session
+     * @param event_persistent $event
+     * @return event_session_persistent
+     * @throws coding_exception
+     */
+    public function create_event_session(event_persistent $event) {
+        $randomnumber = rand();
+        $datetimeformat = $this->get_arlo_datetime_format();
+        $date = new DateTime(
+            'now',
+            core_date::get_user_timezone_object()
+        );
+        $eventsession = new event_session_persistent();
+        $eventsession->set('platform', $this->get_platform());
+        $eventsession->set('sourceid', $randomnumber);
+        $eventsession->set('name', $event->get('code'));
+        $eventsession->set('description', 'PHPUnit Arlo Event Session');
+        $eventsession->set('sourcestatus', EventSessionStatus::ACTIVE);
+        $eventsession->set('sessiontype', EventSessionType::VENUE);
+        $eventsession->set('sourcecreated', $date->format($datetimeformat));
+        $eventsession->set('sourcemodified', $date->format($datetimeformat));
+        $eventsession->set('startdatetime', $date->format($datetimeformat));
+        $date->add(new DateInterval('P1D'));
+        $eventsession->set('finishdatetime', $date->format($datetimeformat));
+        $eventsession->set('starttimezoneabbr', 'GMT');
+        $eventsession->set('finishtimezoneabbr', 'GMT');
+        $eventsession->set('sourceeventid', $event->get('sourceid'));
+        $eventsession->set('sourceeventguid' , $event->get('sourceguid'));
+        $eventsession->save();
+        return $eventsession;
+    }
 
     /**
      * Create a Event template record.
@@ -191,6 +226,38 @@ class enrol_arlo_generator extends testing_module_generator {
         $template->set('sourcemodified', $datetime);
         $template->save();
         return $template;
+    }
+
+    /**
+     * Create course group based on Arlo Code.
+     *
+     * @param $courseid
+     * @param $code
+     * @return int
+     * @throws coding_exception
+     * @throws dml_exception
+     * @throws moodle_exception
+     */
+    public static function create_course_group($courseid, $code) {
+        global $DB;
+        // Check code.
+        if (empty($code)) {
+            throw new coding_exception('Arlo code is empty cannot create course group');
+        }
+        // Format group name.
+        $groupname = get_string('defaultgroupnametext', 'enrol_arlo', array('name' => $code));
+        // Check if group exists and return group id.
+        $group = $DB->get_record('groups', array('idnumber' => $code, 'courseid' => $courseid));
+        if ($group) {
+            return $group->id;
+        }
+        // Create a new group for the for event or online activity.
+        $groupdata              = new stdClass();
+        $groupdata->courseid    = $courseid;
+        $groupdata->name        = $groupname;
+        $groupdata->idnumber    = $code;
+        $groupid                = groups_create_group($groupdata);
+        return $groupid;
     }
 
     /**
