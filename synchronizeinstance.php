@@ -73,6 +73,17 @@ if (confirm_sesskey() and $confirm == true) {
         );
         $outcomesjob = enrol_arlo\local\factory\job_factory::create_from_persistent($outcomesjobpersistent);
         $status = $outcomesjob->run();
+        // Run event sessions job.
+        $eventsessionsjobpersistent = enrol_arlo\local\persistent\job_persistent::get_record(
+            [
+                'area' => 'enrolment',
+                'type' => 'event_sessions',
+                'instanceid' => $instance->id
+            ]
+        );
+        $eventsessionsjob = enrol_arlo\local\factory\job_factory::create_from_persistent($eventsessionsjobpersistent);
+        $status = $eventsessionsjob->run();
+
     } catch (moodle_exception $exception) {
         if ($exception->getMessage() == 'error/locktimeout') {
             redirect($returnurl, get_string('synchroniseoperationiscurrentlylocked', 'enrol_arlo'), 1);

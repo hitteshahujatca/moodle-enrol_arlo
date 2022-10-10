@@ -49,12 +49,14 @@ class job_persistent extends persistent {
         'Events' => 'Event',
         'EventTemplates' => 'EventTemplate',
         'OnlineActivities' => 'OnlineActivity',
-        'Registrations' => 'Registration'
+        'Registrations' => 'Registration',
+        'Sessions' => 'EventSession'
     ];
 
     /** @var array Supported types. */
     private static $types = [
         'event_templates',
+        'event_sessions',
         'events',
         'online_activities',
         'contact_merge_requests',

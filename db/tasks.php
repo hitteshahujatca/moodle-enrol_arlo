@@ -75,5 +75,15 @@ $tasks = [
         'dayofweek' => '*',
         'month' => '*',
         'disabled' => 0
+    ],
+    [
+        'classname' => 'enrol_arlo\task\sessions',
+        'blocking' => 0,
+        'minute' => '*',
+        'hour' => '5',
+        'day' => '*',
+        'dayofweek' => '*',
+        'month' => '*',
+        'disabled' => 0
     ]
 ];

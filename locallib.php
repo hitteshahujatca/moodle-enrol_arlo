@@ -287,3 +287,83 @@ function enrol_arlo_add_associated($arlotype, $eventdata) {
     $plugin->add_instance($course, $fields);
 }
 
+/**
+ * Add individual calendar events for event session data.
+ * @param mixed $sessiondata
+ * @param mixed $enrolinstance
+ * @return bool | $calevent
+ */
+function add_calendar_event_for_session($sessiondata, $enrolinstance) {
+    global $CFG, $DB;
+    require_once($CFG->dirroot.'/calendar/lib.php');
+    // No existing records.
+    $event = new \stdClass();
+    $event->eventtype = 'group';
+    $event->type = CALENDAR_EVENT_TYPE_STANDARD;
+    $event->name = $sessiondata->other['name'];
+    $event->description = $sessiondata->other['description'];
+    $event->format = FORMAT_HTML;
+    $event->courseid = $enrolinstance->courseid;
+    $event->groupid = $enrolinstance->customint2;
+    $event->userid = 0;
+    $event->modulename = 0;
+    $event->instance = $enrolinstance->id;
+    $event->timestart = $sessiondata->other['startdatetime'];
+    $timestart = new \DateTime($sessiondata->other['startdatetime']);
+    $timefinish = new \DateTime($sessiondata->other['finishdatetime']);
+    $event->timestart = $timestart->getTimestamp();
+    $event->visible = true;
+    $event->timeduration = $timefinish->getTimestamp() - $event->timestart;
+    $event->uuid = $sessiondata->other['sourceid'];
+    if (has_capability('moodle/calendar:manageentries', \context_system::instance())) {
+        \calendar_event::create($event);
+    }
+}
+/**
+ * Update individual calendar event for event session data.
+ * @param mixed $sessiondata
+ * @param mixed $enrolinstance
+ * @return bool
+ */
+function update_calendar_event_for_session($sessiondata, $enrolinstance) {
+    global $CFG, $DB;
+    require_once($CFG->dirroot . '/calendar/lib.php');
+    if ($records = $DB->get_records('event', array('uuid' => $sessiondata->other['sourceid'],
+     'instance' => (int)$enrolinstance->id))) {
+        foreach ($records as $record) {
+            $calevent = \calendar_event::load($record->id);
+            // There is an existing calendar event associated with this event session.
+            if ($sessiondata->other['sourcestatus'] === EventSessionStatus::CANCELLED) {
+                // Action cancelled events as deleted.
+                if ($calevent) {
+                    return $calevent->delete(false);
+                }
+            }
+            // Change the times according to the new Arlo event session times.
+            $calevent->name = $sessiondata->other['name'];
+            $calevent->description = $sessiondata->other['description'];
+            $timestart = new \DateTime($sessiondata->other['startdatetime']);
+            $timestart->setTimezone(\core_date::get_user_timezone_object());
+            $calevent->timestart = $timestart->getTimestamp();
+            $calevent->timeduration = strtotime($sessiondata->other['finishdatetime']) - $calevent->timestart;
+            $calevent->update($calevent);
+        }
+    }
+}
+
+/**
+ * Delete calendar event.
+ * @param mixed $enrolinstance
+ * @return bool
+ */
+function delete_calendar_event_for_session($enrolinstance) {
+    global $CFG, $DB;
+    require_once($CFG->dirroot . '/calendar/lib.php');
+    if ($records = $DB->get_records('event', array('instance' => (int)$enrolinstance->id), '*', IGNORE_MISSING)) {
+        foreach ($records as $record) {
+            $calevent = \calendar_event::load($record->id);
+            $calevent->delete(false);
+        }
+    }
+}
+

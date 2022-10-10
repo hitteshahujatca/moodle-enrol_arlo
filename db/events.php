@@ -111,5 +111,21 @@ $observers = [
         'internal'    => true,
         'priority'    => 9999
     ],
+        // Plugin event: An Arlo event session created from Arlo in Moodle.
+    [
+        'eventname' => '\enrol_arlo\event\session_created',
+        'callback'    => '\enrol_arlo\local\observer::session_added',
+        'includefile' => null,
+        'internal'    => true,
+        'priority'    => 9999
+    ],
+        // Plugin event: An Arlo event session updated in Arlo and in Moodle.
+    [
+        'eventname' => '\enrol_arlo\event\session_updated',
+        'callback'    => '\enrol_arlo\local\observer::session_updated',
+        'includefile' => null,
+        'internal'    => true,
+        'priority'    => 9999
+    ]
 
 ];

@@ -248,5 +248,29 @@
         <INDEX NAME="timelogged" UNIQUE="false" FIELDS="timelogged"/>
       </INDEXES>
     </TABLE>
+    <TABLE NAME="enrol_arlo_event_session" COMMENT="Store Session details for each Arlo event.">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="platform" TYPE="char" LENGTH="128" NOTNULL="false" SEQUENCE="false" COMMENT="Arlo platform indicator"/>
+        <FIELD NAME="sourceid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="An integer value that uniquely identifies this resource."/>
+        <FIELD NAME="startdatetime" TYPE="char" LENGTH="36" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="finishdatetime" TYPE="char" LENGTH="36" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="startdatetimezoneabbr" TYPE="char" LENGTH="36" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="finishdatetimezoneabbr" TYPE="char" LENGTH="36" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="sessiontype" TYPE="char" LENGTH="36" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="description" TYPE="char" LENGTH="48" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="sourcestatus" TYPE="char" LENGTH="20" NOTNULL="false" SEQUENCE="false" COMMENT="An EventSessionStatus value representing the current state of this session, such as draft, active, completed or cancelled."/>
+        <FIELD NAME="sourcecreated" TYPE="char" LENGTH="36" NOTNULL="false" SEQUENCE="false" COMMENT="When this resource was created on Arlo"/>
+        <FIELD NAME="sourcemodified" TYPE="char" LENGTH="36" NOTNULL="false" SEQUENCE="false" COMMENT="When this resource was last modified on Arlo"/>
+        <FIELD NAME="sourceeventid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="sourceeventguid" TYPE="char" LENGTH="36" NOTNULL="false" SEQUENCE="false"/>        
+        <FIELD NAME="usermodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Time stamp when record modified."/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+    </TABLE>    
   </TABLES>
 </XMLDB>
