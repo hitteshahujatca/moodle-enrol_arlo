@@ -134,6 +134,7 @@ class contacts_job extends job {
                     $uri->setPagingTop(250);
                     $uri->setResourcePath($jobpersistent->get('endpoint'));
                     $uri->addExpand('Registration/Contact');
+                    $uri->addExpand('Registration/Contact/CustomFields');
                     $filter = "Contact/LastModifiedDateTime gt datetime('". $jobpersistent->get('lastsourcetimemodified') ."')";
                     $uri->setFilterBy($filter);
                     $uri->setOrderBy('Contact/LastModifiedDateTime ASC');
